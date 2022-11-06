@@ -6,7 +6,7 @@ p_load('tidyverse')
 provider_data <- read_csv('data/Train.csv')
 provider_data <- provider_data %>%
   mutate(PotentialFraud = factor(ifelse(PotentialFraud == "Yes", 1, 0)))
-table(provider_data$PotentialFraud)
+table(provider_data$PotentialFraud) # 4904 non-fraud & 506 fraud
 
 
 beneficiary_data <- read_csv('data/Train_Beneficiarydata.csv',
@@ -14,13 +14,23 @@ beneficiary_data <- read_csv('data/Train_Beneficiarydata.csv',
                                               BeneID = 'c',
                                               DOB = 'D',
                                               DOD = 'D',
+                                              # Factorized Gender
+                                              Gender = 'f',
                                               Race = 'f',
-                                              RenalDiseaseIndicator = 'I',
                                               State = 'f',
+                                              # kept the type as chr for now
+                                              RenalDiseaseIndicator = 'c',
                                               County = 'f'))
 beneficiary_data <- beneficiary_data %>%
   mutate_at(vars(matches("ChronicCond")), ~ifelse(. == "1", 0, 1)) %>%
-  mutate_at(vars(matches("ChronicCond")), as.factor)
+  mutate_at(vars(matches("ChronicCond")), as.factor) %>%
+  # changed 'Y' to 1 and factorize
+  mutate_at("RenalDiseaseIndicator", ~ifelse(. == 'Y', 1, 0)) %>% 
+  mutate_at("RenalDiseaseIndicator", as.factor) %>% 
+  # Removed NoOfMonths_PartACov & NoOfMonths_PartBCov
+  select(-c("NoOfMonths_PartACov", "NoOfMonths_PartBCov")) %>%
+  # dropped neg IP & OP annual reimbursement amount
+  subset(IPAnnualReimbursementAmt >= 0 & OPAnnualReimbursementAmt >= 0)
 
 
 inpatient_data <- read_csv('data/Train_Inpatientdata.csv',
