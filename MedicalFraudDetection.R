@@ -104,3 +104,21 @@ plot_all_columns(provider_data)
 plot_all_columns(beneficiary_data)
 
 
+#START ----- distribution of diagnosisCode -----
+diagnosis_codes <- read_csv('data/CMS32_DESC_LONG_SHORT_DX.csv')
+inpatient_pivot_long <- inpatient_data %>%
+  select(contains('DiagnosisCode')) %>%
+  pivot_longer(cols = contains("DiagnosisCode"), 
+               names_to = "DiagnosisType", 
+               values_to = "DiagnosisCode") %>%
+  mutate(DiagnosisGroupCode = ifelse(startsWith(DiagnosisCode, 'E'), substr(DiagnosisCode,0,4), substr(DiagnosisCode,0,3)) )
+
+inpatient_pivot_long_with_group1 <-  left_join(inpatient_pivot_long, diagnosis_codes, by = c('DiagnosisGroupCode' = 'GROUP_L3_CODE')) %>%
+  mutate(GROUP_L1_CODE = as.factor(as.integer(as.factor(GROUP_L1_NAME))))
+
+inpatient_pivot_long_with_group1 %>%
+  ggplot() + 
+  geom_bar(aes(x = fct_infreq(GROUP_L1_NAME))) +
+  theme(axis.text.x = element_text(angle = 90))
+#END ----- distribution of diagnosisCode -----
+
