@@ -39,16 +39,13 @@ beneficiary_data$age = trunc((beneficiary_data$DOB  %--% Sys.Date()) / years(1))
 
 
 inpatient_data <- read_csv('data/Train_Inpatientdata.csv',
-                           col_types = cols(.default = 'n',
-                                            BeneID = 'c',
-                                            ClaimID = 'c',
+                           # Updated col_types to keep the possible letter in codes
+                           col_types = cols(.default = 'c',
                                             ClaimStartDt = 'D',
                                             ClaimEndDt = 'D',
-                                            Provider = 'c',
-                                            AttendingPhysician = 'c',
-                                            OperatingPhysician = 'c',
-                                            OtherPhysician = 'c',
+                                            InscClaimAmtReimbursed = 'n',
                                             AdmissionDt = 'D',
+                                            DeductibleAmtPaid = 'n',
                                             DischargeDt = 'D'
                            ))
 inpatient_data <- inpatient_data %>%
@@ -56,18 +53,21 @@ inpatient_data <- inpatient_data %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
 
+inpatient_data$DaysAdmittedInHospital = as.numeric(difftime(inpatient_data$DischargeDt,
+                                                 inpatient_data$AdmissionDt, 
+                                                 units = "days"))
+
+identical(inpatient_data[['ClaimStartDt']], inpatient_data[['AdmissionDt']])
+identical(inpatient_data$ClaimEndDt, inpatient_data$DischargeDt)
+# Both return false, I believe those columns are not identical
+
 outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
-                            col_types = cols(.default = 'n',
-                                             BeneID = 'c',
-                                             ClaimID = 'c',
+                            # Updated col_types to keep the possible letter in codes
+                            col_types = cols(.default = 'c',
                                              ClaimStartDt = 'D',
                                              ClaimEndDt = 'D',
-                                             Provider = 'c',
-                                             AttendingPhysician = 'c',
-                                             OperatingPhysician = 'c',
-                                             OtherPhysician = 'c',
-                                             AdmissionDt = 'D',
-                                             DischargeDt = 'D'
+                                             InscClaimAmtReimbursed = 'n',
+                                             DeductibleAmtPaid = 'n'
                             ))
 outpatient_data <- outpatient_data %>%
   mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
