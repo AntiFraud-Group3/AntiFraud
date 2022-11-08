@@ -1,7 +1,9 @@
+setwd("C:/Users/shour/Desktop/project/AntiFraud")
 getwd()
 
 library('pacman')
 p_load('tidyverse')
+require('lubridate')
 
 provider_data <- read_csv('data/Train.csv')
 provider_data <- provider_data %>%
@@ -32,31 +34,16 @@ beneficiary_data <- beneficiary_data %>%
   # dropped neg IP & OP annual reimbursement amount
   subset(IPAnnualReimbursementAmt >= 0 & OPAnnualReimbursementAmt >= 0)
 
+beneficiary_data$alive = factor(ifelse(is.na(beneficiary_data$DOD), 1, 0))
+beneficiary_data$age = trunc((beneficiary_data$DOB  %--% Sys.Date()) / years(1))
+
 
 inpatient_data <- read_csv('data/Train_Inpatientdata.csv',
                            col_types = cols(.default = 'n',
                                             BeneID = 'c',
                                             ClaimID = 'c',
                                             ClaimStartDt = 'D',
-                                            ClaimsEndDt = 'D',
-                                            Provider = 'c',
-                                            AttendingPhysician = 'c',
-                                            OperatingPhysician = 'c',
-                                            OtherPhysician = 'c',
-                                            AdmissionDt = 'D',
-                                            DischargeDt = 'D'
-                                            ))
-inpatient_data <- inpatient_data %>%
-  mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
-  mutate_at(vars(matches("Code")), as.factor) %>%
-  mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
-
-outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
-                           col_types = cols(.default = 'n',
-                                            BeneID = 'c',
-                                            ClaimID = 'c',
-                                            ClaimStartDt = 'D',
-                                            ClaimsEndDt = 'D',
+                                            ClaimEndDt = 'D',
                                             Provider = 'c',
                                             AttendingPhysician = 'c',
                                             OperatingPhysician = 'c',
@@ -64,6 +51,24 @@ outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
                                             AdmissionDt = 'D',
                                             DischargeDt = 'D'
                            ))
+inpatient_data <- inpatient_data %>%
+  mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
+  mutate_at(vars(matches("Code")), as.factor) %>%
+  mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
+
+outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
+                            col_types = cols(.default = 'n',
+                                             BeneID = 'c',
+                                             ClaimID = 'c',
+                                             ClaimStartDt = 'D',
+                                             ClaimEndDt = 'D',
+                                             Provider = 'c',
+                                             AttendingPhysician = 'c',
+                                             OperatingPhysician = 'c',
+                                             OtherPhysician = 'c',
+                                             AdmissionDt = 'D',
+                                             DischargeDt = 'D'
+                            ))
 outpatient_data <- outpatient_data %>%
   mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
@@ -73,7 +78,7 @@ p_load('cowplot')
 
 plot_all_columns <- function(data_frame) 
 {
-    plot_list <- lapply(names(data_frame), function(var_x){
+  plot_list <- lapply(names(data_frame), function(var_x){
     p <- 
       ggplot(data_frame) +
       aes_string(var_x)
