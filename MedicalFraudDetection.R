@@ -122,3 +122,66 @@ inpatient_pivot_long_with_group1 %>%
   theme(axis.text.x = element_text(angle = 90))
 #END ----- distribution of diagnosisCode -----
 
+
+#START ----- network analysis ----- 
+#network among beneficiary, physician and provider
+
+inpatient_pivot_physician <- inpatient_data %>%
+  pivot_longer(cols = contains("Physician"), 
+               names_to = "PhysicianType", 
+               values_to = "PhysicianID") %>%
+  select(c(BeneID, Provider, PhysicianType, PhysicianID))
+
+bene_to_provider <- inpatient_data %>%
+  select(c(BeneID, Provider))
+
+physician_to_provider <- inpatient_pivot_physician %>%
+  select(c(PhysicianID, Provider)) %>%
+  drop_na(PhysicianID) %>%
+  distinct()
+
+#histogram of physicians per provider
+number_of_physician_per_provider <- physician_to_provider %>% 
+  group_by(Provider) %>%
+  summarise(n = n())
+
+number_of_physician_per_provider %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 1)
+
+#draw graph - TBD
+
+#inpatient_data - beneid_freq
+beneid_freq <- inpatient_data %>%
+  group_by(BeneID) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+beneid_freq %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 1)
+
+#inpatient_data - provider_freq, provider on the long tail is suspicious?
+provider_freq <- inpatient_data %>%
+  group_by(Provider) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+provider_freq %>%
+  filter(n > 20) %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 1)
+
+#inpatient_data - physician_freq, physician on the long tail is suspicious?
+physician_freq <- inpatient_pivot_physician %>%
+  drop_na(PhysicianID) %>%
+  group_by(PhysicianID) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+physician_freq %>%
+  filter(n > 10) %>%
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 1)
+
+#END ----- network analysis ----- 
