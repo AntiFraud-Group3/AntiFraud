@@ -51,11 +51,15 @@ inpatient_data <- read_csv('data/Train_Inpatientdata.csv',
 inpatient_data <- inpatient_data %>%
   mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
-  mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
+  mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist")) %>%
+  # Should we assume NA in deductibleAmtPaid to be 0 ???
+  mutate_at("DeductibleAmtPaid", ~replace_na(., 0))
 
 inpatient_data$DaysAdmittedInHospital = as.numeric(difftime(inpatient_data$DischargeDt,
                                                  inpatient_data$AdmissionDt, 
                                                  units = "days"))
+inpatient_data$TotalAmt = inpatient_data$InscClaimAmtReimbursed + inpatient_data$DeductibleAmtPaid
+inpatient_data$AvgPerDay = round(inpatient_data$TotalAmt/inpatient_data$DaysAdmittedInHospital,2)
 
 identical(inpatient_data[['ClaimStartDt']], inpatient_data[['AdmissionDt']])
 identical(inpatient_data$ClaimEndDt, inpatient_data$DischargeDt)
@@ -73,6 +77,8 @@ outpatient_data <- outpatient_data %>%
   mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
+
+outpatient_data$TotalAmt = outpatient_data$InscClaimAmtReimbursed + outpatient_data$DeductibleAmtPaid
 
 p_load('cowplot')
 
