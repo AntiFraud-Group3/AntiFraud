@@ -1,4 +1,5 @@
 setwd("C:/Users/shour/Desktop/project/AntiFraud")
+#setwd("~/Downloads/HKU/M1/FITE7410 Financial Fraud Detection/GitHub/AntiFraud")
 getwd()
 
 library('pacman')
@@ -53,17 +54,12 @@ inpatient_data <- inpatient_data %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist")) %>%
   # Should we assume NA in deductibleAmtPaid to be 0 ???
-  mutate_at("DeductibleAmtPaid", ~replace_na(., 0))
+  mutate_at("DeductibleAmtPaid", ~replace_na(., 0)) %>% 
+  select(-c("AdmissionDt", "DischargeDt"))
 
-inpatient_data$DaysAdmittedInHospital = as.numeric(difftime(inpatient_data$DischargeDt,
-                                                 inpatient_data$AdmissionDt, 
-                                                 units = "days"))
-inpatient_data$TotalAmt = inpatient_data$InscClaimAmtReimbursed + inpatient_data$DeductibleAmtPaid
-inpatient_data$AvgPerDay = round(inpatient_data$TotalAmt/inpatient_data$DaysAdmittedInHospital,2)
-
-identical(inpatient_data[['ClaimStartDt']], inpatient_data[['AdmissionDt']])
-identical(inpatient_data$ClaimEndDt, inpatient_data$DischargeDt)
-# Both return false, I believe those columns are not identical
+length(inpatient_data$ClaimStartDt == inpatient_data$AdmissionDt) == nrow(inpatient_data)
+length(inpatient_data$ClaimEndDt == inpatient_data$DischargeDt) == nrow(inpatient_data)
+# Both return TRUE, droped AdmissionDt & DischargeDt
 
 outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
                             # Updated col_types to keep the possible letter in codes
@@ -73,12 +69,33 @@ outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
                                              InscClaimAmtReimbursed = 'n',
                                              DeductibleAmtPaid = 'n'
                             ))
-outpatient_data <- outpatient_data %>%
+outpatient_data <- outpatient_data %>% 
   mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
 
-outpatient_data$TotalAmt = outpatient_data$InscClaimAmtReimbursed + outpatient_data$DeductibleAmtPaid
+# outer merge inpatient and outpatient data
+AllPatientData <- merge(x = outpatient_data, y = inpatient_data, 
+                        by = c('BeneID', 'ClaimID', 'ClaimStartDt', 'ClaimEndDt', 
+                               'Provider', 'InscClaimAmtReimbursed', 'AttendingPhysician', 
+                               'OperatingPhysician', 'OtherPhysician', 'ClmDiagnosisCode_1', 
+                               'ClmDiagnosisCode_2', 'ClmDiagnosisCode_3', 'ClmDiagnosisCode_4', 
+                               'ClmDiagnosisCode_5', 'ClmDiagnosisCode_6', 'ClmDiagnosisCode_7', 
+                               'ClmDiagnosisCode_8', 'ClmDiagnosisCode_9', 'ClmDiagnosisCode_10', 
+                               'ClmProcedureCode_1', 'ClmProcedureCode_2', 'ClmProcedureCode_3', 
+                               'ClmProcedureCode_4', 'ClmProcedureCode_5', 'ClmProcedureCode_6', 
+                               'DeductibleAmtPaid', 'ClmAdmitDiagnosisCode'), all = TRUE)
+# left join patient data with beneficiary details
+AllPatientData <- AllPatientData %>% left_join(beneficiary_data, by="BeneID")
+# merge with fraudulent provider details
+AllPatientData <- merge(AllPatientData, provider_data)
+
+AllPatientData$ClaimLength = as.numeric(difftime(AllPatientData$ClaimStartDt,
+                                                            AllPatientData$ClaimEndDt, 
+                                                            units = "days"))
+AllPatientData$TotalAmt = AllPatientData$InscClaimAmtReimbursed + AllPatientData$DeductibleAmtPaid
+AllPatientData$AvgPerDay = round(AllPatientData$TotalAmt/AllPatientData$ClaimLength,2)
+
 
 p_load('cowplot')
 
