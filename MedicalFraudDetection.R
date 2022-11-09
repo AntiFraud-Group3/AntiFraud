@@ -50,7 +50,7 @@ inpatient_data <- read_csv('data/Train_Inpatientdata.csv',
                                             DischargeDt = 'D'
                            ))
 inpatient_data <- inpatient_data %>%
-  mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
+  mutate_at(vars(matches("Code")), ~replace_na(., "Non-Exist"))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist")) %>%
   # Should we assume NA in deductibleAmtPaid to be 0 ???
@@ -58,7 +58,7 @@ inpatient_data <- inpatient_data %>%
 
 length(inpatient_data$ClaimStartDt == inpatient_data$AdmissionDt) == nrow(inpatient_data)
 length(inpatient_data$ClaimEndDt == inpatient_data$DischargeDt) == nrow(inpatient_data)
-# Both return TRUE, droped AdmissionDt & DischargeDt
+# Both return TRUE, dropped AdmissionDt & DischargeDt
 
 inpatient_data <- inpatient_data %>% 
   select(-c("AdmissionDt", "DischargeDt"))
@@ -72,9 +72,18 @@ outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
                                              DeductibleAmtPaid = 'n'
                             ))
 outpatient_data <- outpatient_data %>% 
-  mutate_at(vars(matches("Code")), ~replace_na(., -1))  %>%
+  mutate_at(vars(matches("Code")), ~replace_na(., "Non-Exist"))  %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist"))
+
+# Separate provider data into train validation and test using 60:20:20
+set.seed(3451)
+dt = sort(sample(nrow(provider_data), nrow(provider_data)*.6))
+train<-provider_data[dt,]
+test<-provider_data[-dt,]
+dt = sort(sample(nrow(test), nrow(test)*.5))
+valid<-test[dt,]
+test<-test[-dt,]
 
 # outer merge inpatient and outpatient data
 AllPatientData <- merge(x = outpatient_data, y = inpatient_data, 
@@ -89,8 +98,6 @@ AllPatientData <- merge(x = outpatient_data, y = inpatient_data,
                                'DeductibleAmtPaid', 'ClmAdmitDiagnosisCode'), all = TRUE)
 # left join patient data with beneficiary details
 AllPatientData <- AllPatientData %>% left_join(beneficiary_data, by="BeneID")
-# merge with fraudulent provider details
-AllPatientData <- merge(AllPatientData, provider_data)
 
 AllPatientData$ClaimLength = as.numeric(difftime(AllPatientData$ClaimEndDt,
                                                  AllPatientData$ClaimStartDt, 
@@ -99,6 +106,11 @@ AllPatientData$TotalAmt = AllPatientData$InscClaimAmtReimbursed + AllPatientData
 AllPatientData$AvgPerDay = ifelse(AllPatientData$ClaimLength != 0, 
                                   round(AllPatientData$TotalAmt/AllPatientData$ClaimLength,2),
                                   AllPatientData$TotalAmt)
+
+# merge with fraudulent provider details as separate train, test, and validation datasets
+AllPatientDatatrain <- merge(AllPatientData, train, by='Provider')
+AllPatientDatavalid <- merge(AllPatientData, valid, by='Provider')
+AllPatientDatatest <- merge(AllPatientData, test, by='Provider')
 
 
 p_load('cowplot')
