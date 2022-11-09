@@ -54,12 +54,14 @@ inpatient_data <- inpatient_data %>%
   mutate_at(vars(matches("Code")), as.factor) %>%
   mutate_at(vars(matches("Physician")), ~replace_na(., "Non-Exist")) %>%
   # Should we assume NA in deductibleAmtPaid to be 0 ???
-  mutate_at("DeductibleAmtPaid", ~replace_na(., 0)) %>% 
-  select(-c("AdmissionDt", "DischargeDt"))
+  mutate_at("DeductibleAmtPaid", ~replace_na(., 0)) 
 
 length(inpatient_data$ClaimStartDt == inpatient_data$AdmissionDt) == nrow(inpatient_data)
 length(inpatient_data$ClaimEndDt == inpatient_data$DischargeDt) == nrow(inpatient_data)
 # Both return TRUE, droped AdmissionDt & DischargeDt
+
+inpatient_data <- inpatient_data %>% 
+  select(-c("AdmissionDt", "DischargeDt"))
 
 outpatient_data <- read_csv('data/Train_Outpatientdata.csv',
                             # Updated col_types to keep the possible letter in codes
@@ -90,11 +92,13 @@ AllPatientData <- AllPatientData %>% left_join(beneficiary_data, by="BeneID")
 # merge with fraudulent provider details
 AllPatientData <- merge(AllPatientData, provider_data)
 
-AllPatientData$ClaimLength = as.numeric(difftime(AllPatientData$ClaimStartDt,
-                                                            AllPatientData$ClaimEndDt, 
-                                                            units = "days"))
+AllPatientData$ClaimLength = as.numeric(difftime(AllPatientData$ClaimEndDt,
+                                                 AllPatientData$ClaimStartDt, 
+                                                 units = "days"))
 AllPatientData$TotalAmt = AllPatientData$InscClaimAmtReimbursed + AllPatientData$DeductibleAmtPaid
-AllPatientData$AvgPerDay = round(AllPatientData$TotalAmt/AllPatientData$ClaimLength,2)
+AllPatientData$AvgPerDay = ifelse(AllPatientData$ClaimLength != 0, 
+                                  round(AllPatientData$TotalAmt/AllPatientData$ClaimLength,2),
+                                  AllPatientData$TotalAmt)
 
 
 p_load('cowplot')
