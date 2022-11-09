@@ -238,12 +238,15 @@ inpatient_data <- inpatient_data %>% sample_n(1000)
 
 bene <- inpatient_data %>% 
   distinct(BeneID) %>% 
-  rename(label = BeneID)
+  rename(label = BeneID) %>%
+  mutate(group = 0)
 provider <- inpatient_data %>% 
   distinct(Provider) %>% 
-  rename(label = Provider)
+  rename(label = Provider)%>%
+  mutate(group = 1)
 
-nodes <- full_join(bene, provider, by = "label")
+#nodes <- full_join(bene, provider, by = "label")
+nodes <- bind_rows(bene, provider)
 nodes <- rowid_to_column(nodes, "id")
 
 per_route <- inpatient_data %>%  
