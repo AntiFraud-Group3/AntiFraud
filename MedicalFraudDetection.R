@@ -170,7 +170,42 @@ number_of_physician_per_provider %>%
   ggplot(aes(x = n)) +
   geom_histogram(binwidth = 1)
 
-#draw graph - TBD
+#draw graph
+inpatient_data <- inpatient_data %>% sample_n(1000)
+
+bene <- inpatient_data %>% 
+  distinct(BeneID) %>% 
+  rename(label = BeneID)
+provider <- inpatient_data %>% 
+  distinct(Provider) %>% 
+  rename(label = Provider)
+
+nodes <- full_join(bene, provider, by = "label")
+nodes <- rowid_to_column(nodes, "id")
+
+per_route <- inpatient_data %>%  
+  group_by(BeneID, Provider) %>%
+  summarise(weight = n()) %>% 
+  ungroup()
+
+edges <- per_route %>% 
+  left_join(nodes, by = c("BeneID" = "label")) %>% 
+  rename(from = id)
+
+edges <- edges %>% 
+  left_join(nodes, by = c("Provider" = "label")) %>% 
+  rename(to = id)
+edges <- select(edges, from, to, weight)
+
+network <- network(edges,
+                          vertex.attr = nodes,
+                          matrix.type = "edgelist",
+                          ignore.eval = FALSE)
+
+
+p_load(visNetwork)
+visNetwork(nodes, edges)
+
 
 #inpatient_data - beneid_freq
 beneid_freq <- inpatient_data %>%
