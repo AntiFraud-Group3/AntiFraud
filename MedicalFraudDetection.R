@@ -3,6 +3,9 @@ setwd("C:/Users/shour/Desktop/project/AntiFraud")
 getwd()
 
 library('pacman')
+library('dplyr')
+library('ggplot2')
+
 p_load('tidyverse')
 require('lubridate')
 
@@ -113,6 +116,44 @@ AllPatientDatavalid <- merge(AllPatientData, valid, by='Provider')
 AllPatientDatatest <- merge(AllPatientData, test, by='Provider')
 
 
+# InscClaimAmtReimbursed of inpatient & outpatient of one BeneID should equal to the total reimbursement amount (IPAnnualReimbursementAmt + OPAnnualReimbursementAmt) of the BeneID
+
+AllPatientData$TotalReimbursementAmount = AllPatientData$IPAnnualReimbursementAmt + AllPatientData$OPAnnualReimbursementAmt 
+
+InscClaimAmtReimbursed_ByBeneID <- setNames(aggregate(AllPatientData$InscClaimAmtReimbursed, by=list(BeneID=AllPatientData$BeneID), FUN=sum), c("BeneID", "InscClaimAmtReimbursed"))
+TotalAnnualReimbursementAmount_ByBeneID <- distinct(AllPatientData, BeneID, .keep_all= TRUE) %>% select(BeneID, TotalReimbursementAmount)
+
+all(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed == TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount) # not all are equals 
+
+length(which(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed == TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount))
+length(which(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed != TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount))
+# 77033 BeneID have equal amount, 61496 are not equal
+
+
+# Correlation between amount and no. of days admitted
+
+summary(AllPatientData$AvgPerDay)
+ggplot(AllPatientData, aes(x=AvgPerDay)) + geom_histogram() + labs(title="Distribution of Average Amount Per Day", x="Amount")
+ggplot(AllPatientData, aes(x=AvgPerDay)) + geom_histogram() + xlim(0, 1000) + labs(title="Distribution of Average Amount Per Day Under 1,000", x="Amount") 
+
+ggplot(aes(x=TotalAmt, y=ClaimLength), data=AllPatientData) + geom_count() + labs(title="Total Amount VS No. of Days Admitted", x="Total Amount", y = "No. of Days Admitted")
+
+
+# InscClaimAmtReimbursed involving OperatingPhysician and not involving OperatingPhysician
+
+AllPatientData_ByClaimID <- distinct(AllPatientData, ClaimID, .keep_all= TRUE) %>% select(ClaimID, InscClaimAmtReimbursed, OperatingPhysician)
+
+AllPatientData_ByClaimID$Operation <- NA
+AllPatientData_ByClaimID$Operation[AllPatientData_ByClaimID$OperatingPhysician=="Non-Exist"] <- "No"
+AllPatientData_ByClaimID$Operation[AllPatientData_ByClaimID$OperatingPhysician!="Non-Exist"] <- "Yes"
+
+summary(subset(AllPatientData_ByClaimID, AllPatientData_ByClaimID$Operation=="No")$InscClaimAmtReimbursed)
+summary(subset(AllPatientData_ByClaimID, AllPatientData_ByClaimID$Operation=="Yes")$InscClaimAmtReimbursed)
+
+ggplot(AllPatientData_ByClaimID, aes(x=InscClaimAmtReimbursed, fill=Operation)) + geom_histogram() + ylim(0, 150000) + xlim(0, 10000)+ labs(title="Distribution of Amount Involving OperatingPhysician and Not Involving OperatingPhysician Between 0 and 5,000", x="Amount")
+ggplot(AllPatientData_ByClaimID, aes(x=InscClaimAmtReimbursed, fill=Operation)) + geom_histogram() + xlim(10000, 125000)+ labs(title="Distribution of Amount Involving OperatingPhysician and Not Involving OperatingPhysician Between 5,000 and 125,000", x="Amount")
+
+
 p_load('cowplot')
 
 plot_all_columns <- function(data_frame) 
@@ -135,6 +176,11 @@ plot_all_columns <- function(data_frame)
 
 plot_all_columns(provider_data)
 plot_all_columns(beneficiary_data)
+
+# Grouping BeneID by State, County, Race, Gender
+
+AllPatientData_ByBeneID <- distinct(AllPatientData, BeneID, .keep_all= TRUE) %>% select(BeneID, State, County, Race, Gender)
+plot_all_columns(AllPatientData_ByBeneID)
 
 
 #START ----- distribution of diagnosisCode -----
