@@ -101,6 +101,8 @@ AllPatientData <- merge(x = outpatient_data, y = inpatient_data,
                                'DeductibleAmtPaid', 'ClmAdmitDiagnosisCode'), all = TRUE)
 # left join patient data with beneficiary details
 AllPatientData <- AllPatientData %>% left_join(beneficiary_data, by="BeneID")
+# dropped 57 BeneIDs in patients data but not in beneficiary data
+AllPatientData <- AllPatientData %>% filter(if_all(c("DOB", "Gender", "Race"), ~ !is.na(.x)))
 
 AllPatientData$ClaimLength = as.numeric(difftime(AllPatientData$ClaimEndDt,
                                                  AllPatientData$ClaimStartDt, 
