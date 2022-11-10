@@ -3,6 +3,9 @@ setwd("C:/Users/shour/Desktop/project/AntiFraud")
 getwd()
 
 library('pacman')
+library('dplyr')
+library(ggplot2)
+
 p_load('tidyverse')
 require('lubridate')
 
@@ -111,6 +114,28 @@ AllPatientData$AvgPerDay = ifelse(AllPatientData$ClaimLength != 0,
 AllPatientDatatrain <- merge(AllPatientData, train, by='Provider')
 AllPatientDatavalid <- merge(AllPatientData, valid, by='Provider')
 AllPatientDatatest <- merge(AllPatientData, test, by='Provider')
+
+
+# InscClaimAmtReimbursed of inpatient & outpatient of one BeneID should equal to the total reimbursement amount (IPAnnualReimbursementAmt + OPAnnualReimbursementAmt) of the BeneID
+
+AllPatientData$TotalReimbursementAmount = AllPatientData$IPAnnualReimbursementAmt + AllPatientData$OPAnnualReimbursementAmt 
+
+InscClaimAmtReimbursed_ByBeneID <- setNames(aggregate(AllPatientData$InscClaimAmtReimbursed, by=list(BeneID=AllPatientData$BeneID), FUN=sum), c("BeneID", "InscClaimAmtReimbursed"))
+TotalAnnualReimbursementAmount_ByBeneID <- distinct(AllPatientData, BeneID, .keep_all= TRUE) %>% select(BeneID, TotalReimbursementAmount)
+
+all(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed == TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount) # not all are equals 
+
+length(which(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed == TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount))
+length(which(InscClaimAmtReimbursed_ByBeneID$InscClaimAmtReimbursed != TotalAnnualReimbursementAmount_ByBeneID$TotalReimbursementAmount))
+# 77033 BeneID have equal amount, 61496 are not equal
+
+
+# Correlation between amount and no. of days admitted
+
+summary(AllPatientData$AvgPerDay)
+hist(AllPatientData$AvgPerDay[AllPatientData$AvgPerDay<1000], main="Distribution of Average Amount Per Day Under 1,000", xlab="Amount")
+
+ggplot(aes(x=TotalAmt, y=ClaimLength), data=AllPatientData) + geom_count() + labs(title="Total Amount VS No. of Days Admitted", x="Total Amount", y = "No. of Days Admitted") + scale_x_continuous(labels = comma)
 
 
 p_load('cowplot')
