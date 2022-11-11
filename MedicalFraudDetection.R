@@ -8,6 +8,7 @@ library('ggplot2')
 
 p_load('tidyverse')
 require('lubridate')
+library('caret')
 
 provider_data <- read_csv('data/Train.csv')
 provider_data <- provider_data %>%
@@ -117,6 +118,8 @@ AllPatientDatatrain <- merge(AllPatientData, train, by='Provider')
 AllPatientDatavalid <- merge(AllPatientData, valid, by='Provider')
 AllPatientDatatest <- merge(AllPatientData, test, by='Provider')
 
+# Use downsample to training data since it is hard to make up info like ProviderID, BeneID
+APDtrain_downsample <- downSample(AllPatientDatatrain %>% select(-c(PotentialFraud)), AllPatientDatatrain$PotentialFraud)
 
 # InscClaimAmtReimbursed of inpatient & outpatient of one BeneID should equal to the total reimbursement amount (IPAnnualReimbursementAmt + OPAnnualReimbursementAmt) of the BeneID
 
