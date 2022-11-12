@@ -304,3 +304,92 @@ physician_freq %>%
   geom_histogram(binwidth = 1)
 
 #END ----- network analysis ----- 
+
+
+# Random forest
+
+library('randomForest')
+library('party')
+library('precrec')
+library('devtools')
+library('reprtree')
+
+options(repos='http://cran.rstudio.org')
+have.packages <- installed.packages()
+cran.packages <- c('devtools','plotrix','randomForest','tree')
+to.install <- setdiff(cran.packages, have.packages[,1])
+if(length(to.install)>0) install.packages(to.install)
+
+if(!('reprtree' %in% installed.packages())){
+  install_github('munoztd0/reprtree')
+}
+for(p in c(cran.packages, 'reprtree')) eval(substitute(library(pkg), list(pkg=p)))
+
+
+trial_data <- read_csv('data/train_iobp_df.csv')
+trial_data$PotentialFraud <- as.factor(trial_data$PotentialFraud)
+
+set.seed(3451)
+dt = sort(sample(nrow(trial_data), nrow(trial_data)*.6))
+trial_data_train<-trial_data[dt,]
+trial_data_test<-trial_data[-dt,]
+dt = sort(sample(nrow(trial_data_test), nrow(trial_data_test)*.5))
+trial_data_valid<-trial_data_test[dt,]
+trial_data_test<-trial_data_test[-dt,]
+
+trial_data_train <- trial_data_train %>% select(!c(Provider)) %>% sample_n(2000)
+
+# trial_data_train <- trial_data_train %>% sample_n(1000) %>%
+# select(ATT_PHY_Claim_Duration, BENE_OP_Annual_Ded_Amt,
+# ClmCount_Provider_ClmProcedureCode_1,
+# Claim_DiagCode10_CoPayment,
+# ClmCount_Provider_BeneID_OtherPhysician_ClmDiagnosisCode_7,
+# ClmCount_Provider_OtherPhysician, Oth_Phy_tot_claims,
+# Claim_DiagCode10_IP_Annual_Ded_Amt, PRV_Tot_DGrpCodes,
+# Claim_DiagCode8_OP_Annual_ReImb_Amt, PRV_Bene_Age_Sum,
+# Claim_DiagCode10_OP_Annual_ReImb_Amt,
+# ClmCount_Provider_DiagnosisGroupCode, PRV_CoPayment,
+# ClmCount_Provider_ClmProcedureCode_2,
+# Claim_DiagCode10_Claim_Duration, ClmCount_Provider_BeneID,
+# PRV_Tot_Unq_DOB_Years, Admitted_Duration,
+# InscClaimAmtReimbursed, PotentialFraud)
+
+# train_data <- APDtrain_downsample  %>%
+#   select(!contains("County")
+#          & !contains("ID")
+#          & !contains("Code")
+#          & !c(Provider, DOB, DOD, ClaimStartDt, ClaimEndDt)
+#          & !contains("Physician")) %>%
+#   sample_n(10000)
+
+best_mtry <- tuneRF(trial_data_train,trial_data_train$PotentialFraud,stepFactor = 1.2, improve = 0.001, ntree=300, trace=T, plot= T) 
+
+set.seed(400)
+rf <- randomForest(PotentialFraud ~ ., data=trial_data_train, importance=TRUE, proximity=TRUE,
+                   na.action=na.exclude, mtry = 33, ntree = 300, maxnodes = 20) 
+print(rf)
+
+reprtree:::plot.getTree(rf)
+
+rf_pred_train <- predict(rf, trial_data_train)
+confusionMatrix(rf_pred_train, trial_data_train$PotentialFraud)
+
+rf_pred <- predict(rf, newdata = trial_data_valid)
+confusionMatrix(data=rf_pred, reference=trial_data_valid$PotentialFraud)
+
+rf_pred <- as.numeric(rf_pred)
+rf_prc <- evalmod(scores=rf_pred, labels = trial_data_valid$PotentialFraud, mode="rocprc")
+rf_prc
+
+# Plotting model
+plot(rf)
+
+# Importance plot
+importance(rf)
+
+# Variable importance plot
+varImpPlot(rf,
+           sort = T,
+           n.var = 10,
+           main = "Top 10 - Variable Importance")
+
