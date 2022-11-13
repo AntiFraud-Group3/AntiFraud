@@ -1,6 +1,7 @@
 setwd("C:/Users/shour/Desktop/project/AntiFraud")
 #setwd("~/Downloads/HKU/M1/FITE7410 Financial Fraud Detection/GitHub/AntiFraud")
 getwd()
+setwd('C:/work/AntiFraud')
 
 library('pacman')
 library('dplyr')
@@ -191,17 +192,18 @@ plot_all_columns(AllPatientData_ByBeneID)
 #START ----- distribution of diagnosisCode -----
 diagnosis_codes <- read_csv('data/CMS32_DESC_LONG_SHORT_DX.csv')
 inpatient_pivot_long <- inpatient_data %>%
-  select(contains('DiagnosisCode')) %>%
+  select(contains('DiagnosisCode'), PotentialFraud) %>%
   pivot_longer(cols = contains("DiagnosisCode"), 
                names_to = "DiagnosisType", 
                values_to = "DiagnosisCode") %>%
-  mutate(DiagnosisGroupCode = ifelse(startsWith(DiagnosisCode, 'E'), substr(DiagnosisCode,0,4), substr(DiagnosisCode,0,3)) )
+  mutate(DiagnosisCode = as.character(DiagnosisCode)) %>%
+  mutate(DiagnosisGroupL3Code = ifelse(startsWith(DiagnosisCode, 'E'), substr(DiagnosisCode,0,4), substr(DiagnosisCode,0,3)) )
 
-inpatient_pivot_long_with_group1 <-  left_join(inpatient_pivot_long, diagnosis_codes, by = c('DiagnosisGroupCode' = 'GROUP_L3_CODE')) %>%
+inpatient_pivot_long_with_group1 <-  left_join(inpatient_pivot_long, diagnosis_codes, by = c('DiagnosisGroupL3Code' = 'GROUP_L3_CODE')) %>%
   mutate(GROUP_L1_CODE = as.factor(as.integer(as.factor(GROUP_L1_NAME))))
 
 inpatient_pivot_long_with_group1 %>%
-  ggplot() + 
+  ggplot(aes(fill = PotentialFraud)) + 
   geom_bar(aes(x = fct_infreq(GROUP_L1_NAME))) +
   theme(axis.text.x = element_text(angle = 90))
 #END ----- distribution of diagnosisCode -----
