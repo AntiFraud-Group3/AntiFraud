@@ -338,6 +338,7 @@ trial_data_valid<-trial_data_test[dt,]
 trial_data_test<-trial_data_test[-dt,]
 
 trial_data_train <- trial_data_train %>% select(!c(Provider)) %>% sample_n(2000)
+trial_data_valid <- trial_data_valid %>% select(!c(Provider))
 
 # trial_data_train <- trial_data_train %>% sample_n(1000) %>%
 # select(ATT_PHY_Claim_Duration, BENE_OP_Annual_Ded_Amt,
@@ -374,11 +375,13 @@ reprtree:::plot.getTree(rf)
 rf_pred_train <- predict(rf, trial_data_train)
 confusionMatrix(rf_pred_train, trial_data_train$PotentialFraud)
 
+# creating prediction against validation data
 rf_pred <- predict(rf, newdata = trial_data_valid)
 confusionMatrix(data=rf_pred, reference=trial_data_valid$PotentialFraud)
 
-rf_pred <- as.numeric(rf_pred)
-rf_prc <- evalmod(scores=rf_pred, labels = trial_data_valid$PotentialFraud, mode="rocprc")
+# finding ROC and PRC values
+rf_pred <- predict(rf, newdata = trial_data_valid, type = 'prob')
+rf_prc <- evalmod(scores = rf_pred[, 2], labels = trial_data_valid$PotentialFraud, mode="rocprc")
 rf_prc
 
 # Plotting model
@@ -390,6 +393,29 @@ importance(rf)
 # Variable importance plot
 varImpPlot(rf,
            sort = T,
-           n.var = 10,
-           main = "Top 10 - Variable Importance")
+           n.var = 20,
+           main = "Top 20 - Variable Importance")
 
+# ROC curve for random forest
+library('ROCR')
+
+prediction_for_roc_curve <- predict(rf,trial_data_valid,type="prob")
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+classes <- levels(trial_data_valid$PotentialFraud)
+
+for (i in 1:2)
+{
+  true_values <- ifelse(trial_data_valid[,2]==classes[i],1,0)
+  pred <- prediction(prediction_for_roc_curve[,i],true_values)
+  perf <- performance(pred, "tpr", "fpr")
+  if (i==1)
+  {
+    plot(perf,main="ROC Curve",col=pretty_colours[i]) 
+  }
+  else
+  {
+    plot(perf,main="ROC Curve",col=pretty_colours[i],add=TRUE) 
+  }
+  auc.perf <- performance(pred, measure = "auc")
+  print(auc.perf@y.values)
+}
