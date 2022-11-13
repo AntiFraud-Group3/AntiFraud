@@ -313,6 +313,7 @@ library('party')
 library('precrec')
 library('devtools')
 library('reprtree')
+library('ROCR')
 
 options(repos='http://cran.rstudio.org')
 have.packages <- installed.packages()
@@ -324,7 +325,6 @@ if(!('reprtree' %in% installed.packages())){
   install_github('munoztd0/reprtree')
 }
 for(p in c(cran.packages, 'reprtree')) eval(substitute(library(pkg), list(pkg=p)))
-
 
 trial_data <- read_csv('data/in_out_patient_data_agg.csv')
 trial_data$PotentialFraud <- as.factor(trial_data$PotentialFraud)
@@ -383,8 +383,6 @@ varImpPlot(rf,
            main = "Top 20 - Variable Importance")
 
 # ROC curve for random forest
-library('ROCR')
-
 prediction_for_roc_curve <- predict(rf,trial_data_valid,type="prob")
 pretty_colours <- c("#F8766D","#00BA38","#619CFF")
 classes <- levels(trial_data_valid$PotentialFraud)
