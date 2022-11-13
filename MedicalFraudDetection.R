@@ -326,8 +326,9 @@ if(!('reprtree' %in% installed.packages())){
 for(p in c(cran.packages, 'reprtree')) eval(substitute(library(pkg), list(pkg=p)))
 
 
-trial_data <- read_csv('data/train_iobp_df.csv')
+trial_data <- read_csv('data/in_out_patient_data_agg.csv')
 trial_data$PotentialFraud <- as.factor(trial_data$PotentialFraud)
+trial_data[is.na(trial_data)] <- 0
 
 set.seed(3451)
 dt = sort(sample(nrow(trial_data), nrow(trial_data)*.6))
@@ -340,21 +341,6 @@ trial_data_test<-trial_data_test[-dt,]
 trial_data_train <- trial_data_train %>% select(!c(Provider)) %>% sample_n(2000)
 trial_data_valid <- trial_data_valid %>% select(!c(Provider))
 
-# trial_data_train <- trial_data_train %>% sample_n(1000) %>%
-# select(ATT_PHY_Claim_Duration, BENE_OP_Annual_Ded_Amt,
-# ClmCount_Provider_ClmProcedureCode_1,
-# Claim_DiagCode10_CoPayment,
-# ClmCount_Provider_BeneID_OtherPhysician_ClmDiagnosisCode_7,
-# ClmCount_Provider_OtherPhysician, Oth_Phy_tot_claims,
-# Claim_DiagCode10_IP_Annual_Ded_Amt, PRV_Tot_DGrpCodes,
-# Claim_DiagCode8_OP_Annual_ReImb_Amt, PRV_Bene_Age_Sum,
-# Claim_DiagCode10_OP_Annual_ReImb_Amt,
-# ClmCount_Provider_DiagnosisGroupCode, PRV_CoPayment,
-# ClmCount_Provider_ClmProcedureCode_2,
-# Claim_DiagCode10_Claim_Duration, ClmCount_Provider_BeneID,
-# PRV_Tot_Unq_DOB_Years, Admitted_Duration,
-# InscClaimAmtReimbursed, PotentialFraud)
-
 # train_data <- APDtrain_downsample  %>%
 #   select(!contains("County")
 #          & !contains("ID")
@@ -363,11 +349,11 @@ trial_data_valid <- trial_data_valid %>% select(!c(Provider))
 #          & !contains("Physician")) %>%
 #   sample_n(10000)
 
-best_mtry <- tuneRF(trial_data_train,trial_data_train$PotentialFraud,stepFactor = 1.2, improve = 0.001, ntree=300, trace=T, plot= T) 
+best_mtry <- tuneRF(trial_data_train,trial_data_train$PotentialFraud,stepFactor = 1.2, improve = 0.001, ntree=300, trace=T, plot=T) 
 
-set.seed(400)
+set.seed(100)
 rf <- randomForest(PotentialFraud ~ ., data=trial_data_train, importance=TRUE, proximity=TRUE,
-                   na.action=na.exclude, mtry = 33, ntree = 300, maxnodes = 20) 
+                   mtry = 33, ntree = 300, maxnodes = 20) 
 print(rf)
 
 reprtree:::plot.getTree(rf)
@@ -405,7 +391,7 @@ classes <- levels(trial_data_valid$PotentialFraud)
 
 for (i in 1:2)
 {
-  true_values <- ifelse(trial_data_valid[,2]==classes[i],1,0)
+  true_values <- ifelse(trial_data_valid[, 404]==classes[i],1,0)
   pred <- prediction(prediction_for_roc_curve[,i],true_values)
   perf <- performance(pred, "tpr", "fpr")
   if (i==1)
@@ -416,6 +402,6 @@ for (i in 1:2)
   {
     plot(perf,main="ROC Curve",col=pretty_colours[i],add=TRUE) 
   }
-  auc.perf <- performance(pred, measure = "auc")
-  print(auc.perf@y.values)
+  auc <- performance(pred, measure = "auc")
+  print(auc@y.values)
 }
