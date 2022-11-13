@@ -410,5 +410,8 @@ in_out_patient_data_agg <- in_out_patient_data %>%
             ) %>%
   left_join(in_out_patient_data_agg, by = "Provider")
 
+in_out_patient_data_agg <- in_out_patient_data_agg %>% 
+  left_join(provider_data, by = "Provider")
+
 write.csv(in_out_patient_data_agg, "in_out_patient_data_agg.csv")
 
