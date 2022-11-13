@@ -406,3 +406,48 @@ for (i in 1:2)
   auc <- performance(pred, measure = "auc")
   print(auc@y.values)
 }
+
+
+##### START NN modeling #####
+p_load(NeuralNetTools)
+p_load(NeuralSens)
+p_load(MLmetrics)
+
+data <- read_csv('in_out_patient_data_agg.csv',
+                 col_types = cols(.default = 'n',
+                                  Provider = 'c',
+                                  PotentialFraud = 'f')) %>% drop_na()
+levels(data$PotentialFraud) <- c("No", "Yes")
+
+train_test_split_index <- createDataPartition(data$PotentialFraud,p=0.8,list=FALSE)
+data.trn <- data[train_test_split_index,-1]
+data.tst <- data[-train_test_split_index,-1]
+
+set.seed(123456)
+ctrl  <- trainControl(method  = "cv",number  = 10, 
+                      summaryFunction = multiClassSummary, 
+                      classProbs=T,
+                      savePredictions = T) 
+f <- formula(paste("PotentialFraud ~", "County.340 + County.222 + ProcedureCode_couut + County.690 + County.210 + BeneID_count + County.460 + State.28 + County.288 + County.731 + County.11 + County.342 + County.420 + County.890 + OperatingPhysician_count + County.974 + County.331 + IPAnnualReimbursementAmt_sum + InhospitalDuration_sum + InscClaimAmtReimbursed_sum"))
+
+fit.mlp <- train(f, data = data.trn, 
+                 method = "nnet",
+                 trControl = ctrl, 
+                 preProcess = c("center","scale"), 
+                 maxit = 250,    # Maximum number of iterations
+                 tuneGrid = data.frame(size = 5, decay = 1),
+                 metric = "Accuracy",
+                 na.action=na.exclude)
+plotnet(fit.mlp$finalModel)
+
+SensAnalysisMLP(fit.mlp)
+var_importance <- varImp(fit.mlp)$importance
+plot(varImp(fit.mlp), top = 20 )
+
+train_pred <-  predict(fit.mlp,data.trn) # Accuracy of training
+confusionMatrix(data = train_pred, reference = data.trn$PotentialFraud, positive = "Yes")
+
+test_pred <-  predict(fit.mlp,data.tst) # Accuracy of training
+confusionMatrix(data = test_pred, reference = data.tst$PotentialFraud, positive = "Yes")
+
+##### END NN modeling #####
