@@ -309,7 +309,7 @@ physician_freq %>%
 #END ----- network analysis ----- 
 
 
-# Random forest
+##### START Random Forest modeling #####
 
 library('randomForest')
 library('party')
@@ -366,7 +366,7 @@ confusionMatrix(rf_pred_train, trial_data_train$PotentialFraud)
 
 # creating prediction against validation data
 rf_pred <- predict(rf, newdata = trial_data_valid)
-confusionMatrix(data=rf_pred, reference=trial_data_valid$PotentialFraud)
+confusionMatrix(data=rf_pred, reference=trial_data_valid$PotentialFraud, positive = "Yes", mode="everything")
 
 # finding ROC and PRC values
 rf_pred <- predict(rf, newdata = trial_data_valid, type = 'prob')
@@ -397,15 +397,17 @@ for (i in 1:2)
   perf <- performance(pred, "tpr", "fpr")
   if (i==1)
   {
-    plot(perf,main="ROC Curve",col=pretty_colours[i]) 
+    plot(perf,main="Random Forest ROC Curve",col=pretty_colours[i]) 
   }
   else
   {
-    plot(perf,main="ROC Curve",col=pretty_colours[i],add=TRUE) 
+    plot(perf,main="Random Forest ROC Curve",col=pretty_colours[i],add=TRUE) 
   }
   auc <- performance(pred, measure = "auc")
   print(auc@y.values)
 }
+
+##### END Random Forest modeling #####
 
 
 ##### START NN modeling #####
@@ -413,7 +415,7 @@ p_load(NeuralNetTools)
 p_load(NeuralSens)
 p_load(MLmetrics)
 
-data <- read_csv('in_out_patient_data_agg.csv',
+data <- read_csv('data/in_out_patient_data_agg.csv',
                  col_types = cols(.default = 'n',
                                   Provider = 'c',
                                   PotentialFraud = 'f')) %>% drop_na()
@@ -445,9 +447,9 @@ var_importance <- varImp(fit.mlp)$importance
 plot(varImp(fit.mlp), top = 20 )
 
 train_pred <-  predict(fit.mlp,data.trn) # Accuracy of training
-confusionMatrix(data = train_pred, reference = data.trn$PotentialFraud, positive = "Yes")
+confusionMatrix(data = train_pred, reference = data.trn$PotentialFraud, positive = "Yes", mode = "everything")
 
 test_pred <-  predict(fit.mlp,data.tst) # Accuracy of training
-confusionMatrix(data = test_pred, reference = data.tst$PotentialFraud, positive = "Yes")
+confusionMatrix(data = test_pred, reference = data.tst$PotentialFraud, positive = "Yes", mode = "everything")
 
 ##### END NN modeling #####
