@@ -476,12 +476,22 @@ set.seed(1234)
 #
 #svm_tune$best.parameters
 
-
 svmfit = svm(PotentialFraud ~ ., data = train, kernel = "radial", gamma = 0.5, cost=5)
 print(svmfit)
 
 predict_svm <- predict(svmfit, test)
 confusionMatrix(data=predict_svm, reference = test$PotentialFraud, positive="Yes", mode="everything")
+
+predict_svm <- as.numeric(predict_svm)
+test$PotentialFraud <- ifelse(test$PotentialFraud == "Yes", 2, 1)
+
+pr <- prediction(predict_svm, test$PotentialFraud)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
 ##### END SVM modeling #####
 
 
@@ -508,6 +518,13 @@ lr_pred_test <- ifelse(lr_pred_test > 0.5,"Yes","No")
 lr_pred_test <- as.factor(lr_pred_test)
 
 confusionMatrix(lr_pred_test, test$PotentialFraud, positive = "Yes", mode = "everything")
+
+pr <- prediction(lr_pred_test, test$PotentialFraud)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
 
 ##### END Logistic Regression modeling #####
 
