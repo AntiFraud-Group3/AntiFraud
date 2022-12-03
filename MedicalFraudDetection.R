@@ -356,7 +356,7 @@ best_mtry <- tuneRF(trial_data_train,trial_data_train$PotentialFraud,stepFactor 
 
 set.seed(100)
 rf <- randomForest(PotentialFraud ~ ., data=trial_data_train, importance=TRUE, proximity=TRUE,
-                   mtry = 33, ntree = 300, maxnodes = 20) 
+                   mtry = 33, ntree = 300, maxnodes = 25) 
 print(rf)
 
 reprtree:::plot.getTree(rf)
@@ -476,13 +476,58 @@ set.seed(1234)
 #
 #svm_tune$best.parameters
 
-
 svmfit = svm(PotentialFraud ~ ., data = train, kernel = "radial", gamma = 0.5, cost=5)
 print(svmfit)
 
 predict_svm <- predict(svmfit, test)
-confusionMatrix(data=predict_svm, reference = test$PotentialFraud, positive="Yes")
+confusionMatrix(data=predict_svm, reference = test$PotentialFraud, positive="Yes", mode="everything")
+
+predict_svm <- as.numeric(predict_svm)
+test$PotentialFraud <- ifelse(test$PotentialFraud == "Yes", 2, 1)
+
+pr <- prediction(predict_svm, test$PotentialFraud)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
 ##### END SVM modeling #####
+
+
+##### START Logistic Regression modeling #####
+
+data <- read_csv('data/in_out_patient_data_agg.csv',
+                 col_types = cols(.default = 'n',
+                                  Provider = 'c',
+                                  PotentialFraud = 'f')) %>% drop_na()
+data <- data %>% select(-contains("County"))
+data <- data %>% select(-contains("State"))
+data <- data %>% select(-c(Provider))
+
+dt = sort(sample(nrow(data), nrow(data)*.8))
+train<-data[dt,]
+test<-data[-dt,]
+
+set.seed(100)
+model <- glm(PotentialFraud ~ ., family=binomial(link='logit'),data=train)
+summary(model)
+
+lr_pred_test <- predict(model, test)
+lr_pred_test <- ifelse(lr_pred_test > 0.5,"Yes","No")
+lr_pred_test <- as.factor(lr_pred_test)
+
+confusionMatrix(lr_pred_test, test$PotentialFraud, positive = "Yes", mode = "everything")
+
+pr <- prediction(lr_pred_test, test$PotentialFraud)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+##### END Logistic Regression modeling #####
+
 
 ##### START Ensemble Learning #####
 set.seed(1234)
